@@ -41,6 +41,7 @@ src/
 │   └── index.ts      # X-S、X-S-Common 签名（加载外部 JS）
 ├── utils/
 │   ├── cookie.ts    # Cookie 解析/序列化
+│   ├── xhs-paths.ts # 状态目录、Cookie 路径、输出目录（XHS_*）
 │   ├── data.ts       # 数据处理、类型定义
 │   ├── download.ts  # 媒体下载（含 DNS 修复、并发控制）
 │   └── excel.ts     # Excel 导出
@@ -68,16 +69,20 @@ src/
 - 媒体下载使用 `createLimiter()` 控制并发（默认 6，可通过 `XHS_DOWNLOAD_CONCURRENCY` 调整）
 - 搜索有最大页数限制（默认 50 页，防止死循环）
 
-### 4. Cookie 与环境变量
+### 4. Cookie、状态目录与输出目录
 
-- 小红书 Cookie 不再从 `.env` 读取
-- 使用 `bun cookie` 让用户手动粘贴 Cookie，并保存到本地 `cookies.txt`
-- `cookies.txt` 已加入 `.gitignore`，不要提交
+- Cookie **不写进 `.env`**，逻辑在 `src/utils/xhs-paths.ts`：默认写入 **`$XDG_STATE_HOME/spider-xhs-bun/cookies.txt`**（一般为 `~/.local/state/spider-xhs-bun/cookies.txt`），Windows 为 `%APPDATA%/spider-xhs-bun/cookies.txt`。
+- 可用 **`XHS_STATE_DIR`**、**`XHS_COOKIES_FILE`** 覆盖路径；CLI 读取顺序：--cookies → `XHS_COOKIES_FILE` 文件 → 当前目录 `./cookies.txt` → 上一级 `../cookies.txt` → 上述默认 Cookie 文件。
+- 爬取结果根目录：**`--out`** 优先，否则 **`XHS_DATA_DIR`**，否则当前目录下 **`./datas`**。
+- 项目根目录下的 `cookies.txt` 仍可用于仓库内开发（已加入 `.gitignore`）。
 
-环境变量仅用于下载配置：
+环境变量（下载相关）：
 
 | 变量                       | 说明             | 必需                |
 | -------------------------- | ---------------- | ------------------- |
+| `XHS_STATE_DIR`           | 状态根目录（Cookie 默认存其下） | ❌ |
+| `XHS_COOKIES_FILE`        | Cookie 文件完整路径 | ❌ |
+| `XHS_DATA_DIR`            | 爬取输出根目录（未传 `--out` 时） | ❌ |
 | `XHS_DOWNLOAD_CONCURRENCY` | 下载并发数       | ❌ 否（默认 6）     |
 | `XHS_DOWNLOAD_CONNECT_MS`  | 连接超时(ms)     | ❌ 否（默认 15000） |
 | `XHS_DOWNLOAD_IDLE_MS`     | 图片空闲超时(ms) | ❌ 否（默认 15000） |
@@ -124,7 +129,7 @@ src/
 
 ## 注意事项
 
-1. **Cookies 安全性**：不要在代码中硬编码 cookies，使用 `bun cookie` 写入本地 `cookies.txt`（已加入 `.gitignore`）
+1. **Cookies 安全性**：不要在代码中硬编码 cookies；使用 `spider-xhs-bun-cookie` / `bun cookie` 写入本机状态目录或 `XHS_COOKIES_FILE`；仓库内可选用 `./cookies.txt`（已加入 `.gitignore`）
 2. **反爬限制**：控制爬取频率，避免账号被封
 3. **签名失效**：如果请求返回 460 错误，通常是 cookies 或签名失效，需要更新 cookies
 4. **法律合规**：仅用于学习交流，遵守相关法律法规和小红书平台规则

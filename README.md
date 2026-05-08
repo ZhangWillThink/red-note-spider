@@ -141,21 +141,31 @@ bun run search --query "新闻" --noteTime 2
 - `2` - 一周内
 - `3` - 半年内
 
-### 配置 Cookies
+### 配置 Cookies 与目录规范
 
-首次使用或 Cookie 失效后，运行：
+`spider-xhs-bun-cookie`（或 `bun cookie`）会把 Cookie 写入 **本机状态目录**下的 `cookies.txt`，不依赖当前工作目录（便于全局安装 CLI 后在任意目录执行爬取）。
+
+| 用途 | 默认位置 | 覆盖方式 |
+| ---- | -------- | -------- |
+| Cookie 文件 | Linux/macOS：`~/.local/state/spider-xhs-bun/cookies.txt`（遵循 `$XDG_STATE_HOME`）<br>Windows：`%APPDATA%\spider-xhs-bun\cookies.txt` | `XHS_STATE_DIR`（状态根目录）<br>`XHS_COOKIES_FILE`（文件完整路径） |
+| 爬取输出根目录 | 未传 `--out` 时：环境变量 `XHS_DATA_DIR`；再否则为**当前目录**下的 `./datas` | 子命令参数 `--out`<br>或设置 `XHS_DATA_DIR` |
+
+**读取 Cookie 的查找顺序**（命中即停）：`--cookies` 内联 → `XHS_COOKIES_FILE` 指向的文件 → 当前目录 `./cookies.txt` → 上一级 `../cookies.txt` → 上表默认 Cookie 路径。
+
+> **从旧行为升级**：此前若只在「某一固定目录」靠 `cookies.txt` 工作，请在该目录下执行爬取，或把该文件路径设为 `XHS_COOKIES_FILE`，或重新运行一次 `spider-xhs-bun-cookie` 写入状态目录（之后任意目录可用）。
+
+首次使用或 Cookie 失效后：
 
 ```bash
 spider-xhs-bun-cookie
 # 或从源码：bun cookie
 ```
 
-该命令会把 Cookie 保存到**当前工作目录**下的 `cookies.txt`，后续 `note`、`user`、`search` 命令会自动读取。
-
 也可以临时通过参数传入：
 
 ```bash
-bun run note --url "url" --cookies "你的cookies字符串"
+spider-xhs-bun note --url "url" --cookies "你的cookies字符串"
+# 或从源码：bun run note --url "url" --cookies "..."
 ```
 
 ### 出现「无登录信息，或登录信息为空」时
@@ -163,21 +173,26 @@ bun run note --url "url" --cookies "你的cookies字符串"
 接口需要**带完整登录态**的 Cookie。请确认复制的 Cookie 里包含 **`web_session`**（以及浏览器里与登录相关的字段）。
 
 - 在开发者工具 **Network** 中筛选 **Fetch/XHR**，点选发往 **`edith.xiaohongshu.com`**（或主站下的 API）的请求，再复制 **Request Headers → Cookie**，不要只挑静态资源、打点类请求。
-- 保存 Cookie 与执行 `note` / `user` / `search` 时，请在**同一目录**下使用（或始终用 `--cookies`），否则会读到别的 `cookies.txt` 或找不到文件。
+- 若使用仓库内的 `./cookies.txt`，请保证在该文件所在目录下执行命令，或使用 `--cookies` / `XHS_COOKIES_FILE` 指向正确文件。
 
 ## 环境变量
 
-| 变量名                     | 说明                 | 默认值  |
-| -------------------------- | -------------------- | ------- |
-| `XHS_DOWNLOAD_CONCURRENCY` | 媒体下载并发数       | `6`     |
-| `XHS_DOWNLOAD_CONNECT_MS`  | 下载连接超时(ms)     | `15000` |
-| `XHS_DOWNLOAD_IDLE_MS`     | 图片下载空闲超时(ms) | `15000` |
-| `XHS_VIDEO_IDLE_MS`        | 视频下载空闲超时(ms) | `30000` |
+| 变量名                     | 说明                             | 默认值 / 行为 |
+| -------------------------- | -------------------------------- | ------------- |
+| `XHS_STATE_DIR`           | 状态根目录（Cookie 默认在 `…/cookies.txt`） | 见上表 |
+| `XHS_COOKIES_FILE`        | Cookie 文件路径                  | 见上表 |
+| `XHS_DATA_DIR`            | 爬取结果根目录（未传 `--out` 时） | 未设置则用 `./datas` |
+| `XHS_DOWNLOAD_CONCURRENCY` | 媒体下载并发数                   | `6`     |
+| `XHS_DOWNLOAD_CONNECT_MS`  | 下载连接超时(ms)                 | `15000` |
+| `XHS_DOWNLOAD_IDLE_MS`     | 图片下载空闲超时(ms)             | `15000` |
+| `XHS_VIDEO_IDLE_MS`        | 视频下载空闲超时(ms)             | `30000` |
 
 ## 输出目录
 
+下方 `(输出根)/` 默认为 `./datas`，或通过 `--out` / `XHS_DATA_DIR` 指定。
+
 ```
-datas/
+(输出根)/
 ├── media_datas/        # 媒体文件（图片、视频）
 │   └── 昵称_用户ID/
 │       └── 标题_笔记ID/
@@ -202,6 +217,7 @@ red-note-spider/
 │   │   └── index.ts       # X-S、X-S-Common 签名
 │   ├── utils/             # 工具函数
 │   │   ├── cookie.ts      # Cookie 解析
+│   │   ├── xhs-paths.ts   # 状态目录、Cookie/输出路径
 │   │   ├── data.ts        # 数据处理
 │   │   ├── download.ts    # 媒体下载
 │   │   └── excel.ts       # Excel 导出
@@ -209,7 +225,7 @@ red-note-spider/
 │   │   └── index.ts       # CLI 入口（citty）
 │   └── smoke.ts           # 签名模块冒烟测试
 ├── static/                # 静态资源（签名JS）
-├── cookies.txt            # 本地 Cookie（spider-xhs-bun-cookie / bun cookie，不提交）
+├── cookies.txt            # 可选：放在项目根时参与查找（见上文顺序，不提交）
 ├── .env.example           # 下载相关环境变量示例
 ├── package.json
 └── tsconfig.json

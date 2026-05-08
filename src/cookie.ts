@@ -1,13 +1,17 @@
 #!/usr/bin/env bun
 import consola from 'consola'
+import { mkdir } from 'node:fs/promises'
+import { dirname } from 'node:path'
 import { createInterface } from 'node:readline/promises'
 
 import { parseCookies } from './utils/cookie.ts'
-
-const COOKIE_FILE = 'cookies.txt'
+import { cookieFilePath } from './utils/xhs-paths.ts'
 
 async function main(): Promise<void> {
-  consola.info('请粘贴从浏览器 Request Headers 复制的 Cookie 字段')
+  const target = cookieFilePath()
+  consola.info(
+    `请将浏览器 Request Headers 中的 Cookie 粘贴在下方（将写入 ${target}）`,
+  )
 
   const rl = createInterface({
     input: process.stdin,
@@ -32,8 +36,9 @@ async function main(): Promise<void> {
       )
     }
 
-    await Bun.write(COOKIE_FILE, `${cookie}\n`)
-    consola.success(`Cookie 已保存到 ${COOKIE_FILE}`)
+    await mkdir(dirname(target), { recursive: true })
+    await Bun.write(target, `${cookie}\n`)
+    consola.success(`Cookie 已保存到 ${target}`)
   } finally {
     rl.close()
   }

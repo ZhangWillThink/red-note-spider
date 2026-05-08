@@ -2,7 +2,7 @@
 import { defineCommand, runMain } from 'citty'
 import consola from 'consola'
 import { readFile } from 'node:fs/promises'
-import { resolve } from 'node:path'
+import { join, resolve } from 'node:path'
 
 import type { SearchOptions } from '../apis/pc.ts'
 
@@ -11,6 +11,7 @@ import { parseCookies } from '../utils/cookie.ts'
 import { handleNoteInfo, type NoteInfo } from '../utils/data.ts'
 import { downloadNote, ensureDir, type SaveChoice } from '../utils/download.ts'
 import { saveToXlsx } from '../utils/excel.ts'
+import { cookieFilePath, resolveOutputRoot } from '../utils/xhs-paths.ts'
 
 type BasePath = { media: string; excel: string }
 
@@ -24,42 +25,62 @@ function warnIfCookieMissingSession(cookiesStr: string): void {
   )
 }
 
-/** 从命令行或 `bun cookie` / `spider-xhs-bun-cookie` 写入的本地文件读取 cookies */
+/** 读取 cookies.txt 首行非空内容 */
+async function tryReadFirstCookieLine(filePath: string): Promise<string | null> {
+  try {
+    const txt = await readFile(filePath, 'utf8')
+    const first = txt.split('\n').find((l) => l.trim())
+    return first ? first.trim() : null
+  } catch {
+    return null
+  }
+}
+
+/** 从命令行、`cookies.txt` 或本机状态目录读取 cookies（见 `src/utils/xhs-paths.ts`） */
 async function resolveCookies(input?: string): Promise<string> {
-  if (input && input.trim()) {
+  if (input?.trim()) {
     const s = input.trim()
     warnIfCookieMissingSession(s)
     return s
   }
-  for (const p of ['cookies.txt', '../cookies.txt']) {
-    try {
-      const txt = await readFile(p, 'utf8')
-      const first = txt.split('\n').find((l) => l.trim())
-      if (first) {
-        const s = first.trim()
-        warnIfCookieMissingSession(s)
-        return s
-      }
-    } catch {
-      // ignore
+
+  const paths: string[] = []
+  if (process.env.XHS_COOKIES_FILE?.trim()) {
+    paths.push(resolve(process.env.XHS_COOKIES_FILE.trim()))
+  }
+  paths.push(resolve('cookies.txt'), resolve('../cookies.txt'))
+  const canonical = cookieFilePath()
+  if (!paths.includes(canonical)) {
+    paths.push(canonical)
+  }
+
+  for (const p of paths) {
+    const s = await tryReadFirstCookieLine(p)
+    if (s) {
+      warnIfCookieMissingSession(s)
+      return s
     }
   }
+
   throw new Error(
     '未找到 cookies！\n' +
-      '请通过以下任一方式提供：\n' +
-      '  1. 运行 spider-xhs-bun-cookie（或 bun cookie），按提示粘贴 Cookie\n' +
-      '  2. 使用 --cookies "cookies字符串" 参数临时传入\n\n' +
-      '获取 cookies 方法：\n' +
-      '  1. 浏览器访问 https://www.xiaohongshu.com 并登录\n' +
-      '  2. 按 F12 打开开发者工具 → Network 面板\n' +
-      '  3. 刷新页面，找到发往 edith.xiaohongshu.com（或主站 API）的请求，复制 Request Headers 中的完整 Cookie\n' +
-      '  详情请查看 README.md',
+      '请任选其一：\n' +
+      '  1. 运行 spider-xhs-bun-cookie（或 bun cookie），写入本机状态目录\n' +
+      '  2. 在当前目录放置 cookies.txt\n' +
+      '  3. 使用 --cookies "cookies字符串"\n' +
+      '  4. 设置 XHS_COOKIES_FILE 指向 cookie 文件路径\n\n' +
+      `默认写入/备用读取路径：${canonical}\n` +
+      '（可用 XHS_STATE_DIR、XHS_COOKIES_FILE 覆盖，详见 README）\n\n' +
+      '从浏览器获取 Cookie 的步骤见 README.md',
   )
 }
 
-function defaultBasePath(dir?: string): BasePath {
-  const base = resolve(dir ?? './datas')
-  return { media: `${base}/media_datas`, excel: `${base}/excel_datas` }
+function defaultBasePath(outArg?: string): BasePath {
+  const base = resolveOutputRoot(outArg)
+  return {
+    media: join(base, 'media_datas'),
+    excel: join(base, 'excel_datas'),
+  }
 }
 
 function resolveUrlInput(input?: string): string {
@@ -150,7 +171,11 @@ const noteCmd = defineCommand({
       description: 'Excel 文件名（不含扩展名）',
       default: 'notes',
     },
-    out: { type: 'string', description: '输出根目录', default: './datas' },
+    out: {
+      type: 'string',
+      description:
+        '输出根目录（未传时用 XHS_DATA_DIR，否则为当前目录下 ./datas）',
+    },
   },
   async run({ args }) {
     const cookiesStr = await resolveCookies(args.cookies)
@@ -161,7 +186,7 @@ const noteCmd = defineCommand({
     await spiderSomeNote(
       urls,
       cookiesStr,
-      defaultBasePath(args.out),
+      defaultBasePath(args.out as string | undefined),
       args.save as SaveChoice,
       args.name,
     )
@@ -181,7 +206,11 @@ const userCmd = defineCommand({
     },
     cookies: { type: 'string' },
     save: { type: 'string', default: 'all' },
-    out: { type: 'string', default: './datas' },
+    out: {
+      type: 'string',
+      description:
+        '输出根目录（未传时用 XHS_DATA_DIR，否则为当前目录下 ./datas）',
+    },
   },
   async run({ args }) {
     const cookiesStr = await resolveCookies(args.cookies)
@@ -201,7 +230,7 @@ const userCmd = defineCommand({
     await spiderSomeNote(
       noteUrls,
       cookiesStr,
-      defaultBasePath(args.out),
+      defaultBasePath(args.out as string | undefined),
       args.save as SaveChoice,
       excelName,
     )
@@ -218,7 +247,11 @@ const searchCmd = defineCommand({
     num: { type: 'string', description: '需要数量', default: '20' },
     cookies: { type: 'string' },
     save: { type: 'string', default: 'all' },
-    out: { type: 'string', default: './datas' },
+    out: {
+      type: 'string',
+      description:
+        '输出根目录（未传时用 XHS_DATA_DIR，否则为当前目录下 ./datas）',
+    },
     sort: {
       type: 'string',
       description: '0 综合 1 最新 2 最多点赞 3 最多评论 4 最多收藏',
@@ -261,7 +294,7 @@ const searchCmd = defineCommand({
     await spiderSomeNote(
       noteUrls,
       cookiesStr,
-      defaultBasePath(args.out),
+      defaultBasePath(args.out as string | undefined),
       args.save as SaveChoice,
       args.query,
     )
