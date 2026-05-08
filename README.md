@@ -240,17 +240,6 @@ red-note-spider/
 3. **WSL 用户**：项目已处理 WSL 下 xhscdn DNS 解析问题，无需额外配置
 4. **仅供参考与学习**：使用前请再次阅读上文 [免责声明](#免责声明)，并严格遵守法律法规与平台规则
 
-## 与 Python 版对比
-
-| 特性        | Python 版        | Bun/TS 版                    |
-| ----------- | ---------------- | ---------------------------- |
-| 运行时      | Python 3.8+      | Bun 1.0+                     |
-| 依赖管理    | requirements.txt | package.json                 |
-| HTTP 客户端 | requests         | Bun fetch                    |
-| 签名实现    | PyExecJS         | Bun vm (已改为 new Function) |
-| CLI 框架    | argparse         | citty                        |
-| Excel 导出  | openpyxl         | exceljs                      |
-
 ## 开发
 
 ```bash

@@ -1,6 +1,6 @@
 {
   "name": "spider-xhs-bun",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "小红书 PC Web 爬虫 CLI（Bun + TypeScript）",
   "keywords": [
     "bun",
@@ -10,16 +10,16 @@
     "xhs",
     "xiaohongshu"
   ],
+  "homepage": "https://github.com/ZhangWillThink/red-note-spider#readme",
+  "bugs": {
+    "url": "https://github.com/ZhangWillThink/red-note-spider/issues"
+  },
   "license": "MIT",
   "author": "will-zhang",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ZhangWillThink/red-note-spider.git"
   },
-  "bugs": {
-    "url": "https://github.com/ZhangWillThink/red-note-spider/issues"
-  },
-  "homepage": "https://github.com/ZhangWillThink/red-note-spider#readme",
   "bin": {
     "spider-xhs-bun": "src/cli/index.ts",
     "spider-xhs-bun-cookie": "src/cookie.ts"
