@@ -7,20 +7,39 @@ import { resolve } from 'node:path'
 import type { SearchOptions } from '../apis/pc.ts'
 
 import { getNoteInfo, getUserAllNotes, searchSomeNote } from '../apis/pc.ts'
+import { parseCookies } from '../utils/cookie.ts'
 import { handleNoteInfo, type NoteInfo } from '../utils/data.ts'
 import { downloadNote, ensureDir, type SaveChoice } from '../utils/download.ts'
 import { saveToXlsx } from '../utils/excel.ts'
 
 type BasePath = { media: string; excel: string }
 
-/** 从命令行或 `bun cookie` 写入的本地文件读取 cookies */
+/** PC Web 接口通常需要带登录态；缺少时服务端会返回「无登录信息」类错误 */
+function warnIfCookieMissingSession(cookiesStr: string): void {
+  const c = parseCookies(cookiesStr)
+  if (c.web_session?.trim()) return
+  consola.warn(
+    '当前 Cookie 中未检测到 web_session，接口可能返回「无登录信息」。' +
+      '请在已登录状态下，从 Network 里选发往 www.xiaohongshu.com 或 edith.xiaohongshu.com 的 XHR/Fetch，复制完整 Cookie（需含 web_session）。',
+  )
+}
+
+/** 从命令行或 `bun cookie` / `spider-xhs-bun-cookie` 写入的本地文件读取 cookies */
 async function resolveCookies(input?: string): Promise<string> {
-  if (input && input.trim()) return input.trim()
+  if (input && input.trim()) {
+    const s = input.trim()
+    warnIfCookieMissingSession(s)
+    return s
+  }
   for (const p of ['cookies.txt', '../cookies.txt']) {
     try {
       const txt = await readFile(p, 'utf8')
       const first = txt.split('\n').find((l) => l.trim())
-      if (first) return first.trim()
+      if (first) {
+        const s = first.trim()
+        warnIfCookieMissingSession(s)
+        return s
+      }
     } catch {
       // ignore
     }
@@ -28,12 +47,12 @@ async function resolveCookies(input?: string): Promise<string> {
   throw new Error(
     '未找到 cookies！\n' +
       '请通过以下任一方式提供：\n' +
-      '  1. 运行 bun cookie，按提示粘贴 Cookie\n' +
+      '  1. 运行 spider-xhs-bun-cookie（或 bun cookie），按提示粘贴 Cookie\n' +
       '  2. 使用 --cookies "cookies字符串" 参数临时传入\n\n' +
       '获取 cookies 方法：\n' +
       '  1. 浏览器访问 https://www.xiaohongshu.com 并登录\n' +
       '  2. 按 F12 打开开发者工具 → Network 面板\n' +
-      '  3. 刷新页面，找到任意请求，复制 Request Headers 中的 Cookie 字段\n' +
+      '  3. 刷新页面，找到发往 edith.xiaohongshu.com（或主站 API）的请求，复制 Request Headers 中的完整 Cookie\n' +
       '  详情请查看 README.md',
   )
 }
@@ -252,7 +271,7 @@ const searchCmd = defineCommand({
 const main = defineCommand({
   meta: {
     name: 'spider-xhs',
-    version: '0.1.0',
+    version: '0.1.1',
     description: 'Spider XHS (Bun/TS 版)',
   },
   subCommands: { note: noteCmd, user: userCmd, search: searchCmd },

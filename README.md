@@ -158,6 +158,13 @@ spider-xhs-bun-cookie
 bun run note --url "url" --cookies "你的cookies字符串"
 ```
 
+### 出现「无登录信息，或登录信息为空」时
+
+接口需要**带完整登录态**的 Cookie。请确认复制的 Cookie 里包含 **`web_session`**（以及浏览器里与登录相关的字段）。
+
+- 在开发者工具 **Network** 中筛选 **Fetch/XHR**，点选发往 **`edith.xiaohongshu.com`**（或主站下的 API）的请求，再复制 **Request Headers → Cookie**，不要只挑静态资源、打点类请求。
+- 保存 Cookie 与执行 `note` / `user` / `search` 时，请在**同一目录**下使用（或始终用 `--cookies`），否则会读到别的 `cookies.txt` 或找不到文件。
+
 ## 环境变量
 
 | 变量名                     | 说明                 | 默认值  |
