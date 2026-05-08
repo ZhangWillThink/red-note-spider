@@ -3,7 +3,7 @@
 [![npm](https://img.shields.io/npm/v/spider-xhs-bun.svg)](https://www.npmjs.com/package/spider-xhs-bun)
 [![GitHub Repo](https://img.shields.io/badge/GitHub-red--note--spider-181717?logo=github)](https://github.com/ZhangWillThink/red-note-spider)
 
-小红书 PC Web 端爬虫，Bun + TypeScript 实现，基于 [Spider_XHS](https://github.com/NanmiCoder/Spider_XHS) Python 版本移植。
+小红书 PC Web 端爬虫，Bun + TypeScript 实现
 
 - **源码仓库**：[github.com/ZhangWillThink/red-note-spider](https://github.com/ZhangWillThink/red-note-spider)
 - **npm 包**：[spider-xhs-bun](https://www.npmjs.com/package/spider-xhs-bun)（运行仍需本机安装 [Bun](https://bun.sh/) >= 1.0）
@@ -41,9 +41,9 @@ npm install -g spider-xhs-bun
 
 安装后可用全局命令：
 
-| 命令 | 说明 |
-| ---- | ---- |
-| `spider-xhs-bun` | 主 CLI，子命令：`note`、`user`、`search` |
+| 命令                    | 说明                                           |
+| ----------------------- | ---------------------------------------------- |
+| `spider-xhs-bun`        | 主 CLI，子命令：`note`、`user`、`search`       |
 | `spider-xhs-bun-cookie` | 交互式保存 Cookie 到当前目录下的 `cookies.txt` |
 
 不全局安装时，可在项目目录用 **`bunx spider-xhs-bun`**（或 `bun x spider-xhs-bun`）代替下面的 `spider-xhs-bun`，例如：

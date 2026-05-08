@@ -165,6 +165,7 @@ bun run src/smoke.ts
 
 ## 相关文档
 
+- [本机执行 Agent 技能](.cursor/skills/local-computer-agent/SKILL.md) — 终端、Git、`gh`、代理与验证习惯（给在本机代跑命令的 AI 用）
 - [项目 README](./README.md) - 使用说明
 - [Spider_XHS Python 版](https://github.com/NanmiCoder/Spider_XHS) - 原始项目
 - [Bun 文档](https://bun.sh/docs) - 运行时文档
