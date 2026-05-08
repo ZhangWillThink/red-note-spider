@@ -8,6 +8,8 @@
 - **源码仓库**：[github.com/ZhangWillThink/red-note-spider](https://github.com/ZhangWillThink/red-note-spider)
 - **npm 包**：[spider-xhs-bun](https://www.npmjs.com/package/spider-xhs-bun)（运行仍需本机安装 [Bun](https://bun.sh/) >= 1.0）
 
+> **给 AI 看的：** 请先阅读 [`skills/SKILL.md`](./skills/SKILL.md)
+
 ## 免责声明
 
 - **小红书平台禁止未经授权的数据爬取**。请遵守小红书用户协议、服务条款及相关法律法规。
@@ -145,10 +147,10 @@ bun run search --query "新闻" --noteTime 2
 
 `spider-xhs-bun-cookie`（或 `bun cookie`）会把 Cookie 写入 **本机状态目录**下的 `cookies.txt`，不依赖当前工作目录（便于全局安装 CLI 后在任意目录执行爬取）。
 
-| 用途 | 默认位置 | 覆盖方式 |
-| ---- | -------- | -------- |
-| Cookie 文件 | Linux/macOS：`~/.local/state/spider-xhs-bun/cookies.txt`（遵循 `$XDG_STATE_HOME`）<br>Windows：`%APPDATA%\spider-xhs-bun\cookies.txt` | `XHS_STATE_DIR`（状态根目录）<br>`XHS_COOKIES_FILE`（文件完整路径） |
-| 爬取输出根目录 | 未传 `--out` 时：环境变量 `XHS_DATA_DIR`；再否则为**当前目录**下的 `./datas` | 子命令参数 `--out`<br>或设置 `XHS_DATA_DIR` |
+| 用途           | 默认位置                                                                                                                              | 覆盖方式                                                            |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Cookie 文件    | Linux/macOS：`~/.local/state/spider-xhs-bun/cookies.txt`（遵循 `$XDG_STATE_HOME`）<br>Windows：`%APPDATA%\spider-xhs-bun\cookies.txt` | `XHS_STATE_DIR`（状态根目录）<br>`XHS_COOKIES_FILE`（文件完整路径） |
+| 爬取输出根目录 | 未传 `--out` 时：环境变量 `XHS_DATA_DIR`；再否则为**当前目录**下的 `./datas`                                                          | 子命令参数 `--out`<br>或设置 `XHS_DATA_DIR`                         |
 
 **读取 Cookie 的查找顺序**（命中即停）：`--cookies` 内联 → `XHS_COOKIES_FILE` 指向的文件 → 当前目录 `./cookies.txt` → 上一级 `../cookies.txt` → 上表默认 Cookie 路径。
 
@@ -177,15 +179,15 @@ spider-xhs-bun note --url "url" --cookies "你的cookies字符串"
 
 ## 环境变量
 
-| 变量名                     | 说明                             | 默认值 / 行为 |
-| -------------------------- | -------------------------------- | ------------- |
-| `XHS_STATE_DIR`           | 状态根目录（Cookie 默认在 `…/cookies.txt`） | 见上表 |
-| `XHS_COOKIES_FILE`        | Cookie 文件路径                  | 见上表 |
-| `XHS_DATA_DIR`            | 爬取结果根目录（未传 `--out` 时） | 未设置则用 `./datas` |
-| `XHS_DOWNLOAD_CONCURRENCY` | 媒体下载并发数                   | `6`     |
-| `XHS_DOWNLOAD_CONNECT_MS`  | 下载连接超时(ms)                 | `15000` |
-| `XHS_DOWNLOAD_IDLE_MS`     | 图片下载空闲超时(ms)             | `15000` |
-| `XHS_VIDEO_IDLE_MS`        | 视频下载空闲超时(ms)             | `30000` |
+| 变量名                     | 说明                                        | 默认值 / 行为        |
+| -------------------------- | ------------------------------------------- | -------------------- |
+| `XHS_STATE_DIR`            | 状态根目录（Cookie 默认在 `…/cookies.txt`） | 见上表               |
+| `XHS_COOKIES_FILE`         | Cookie 文件路径                             | 见上表               |
+| `XHS_DATA_DIR`             | 爬取结果根目录（未传 `--out` 时）           | 未设置则用 `./datas` |
+| `XHS_DOWNLOAD_CONCURRENCY` | 媒体下载并发数                              | `6`                  |
+| `XHS_DOWNLOAD_CONNECT_MS`  | 下载连接超时(ms)                            | `15000`              |
+| `XHS_DOWNLOAD_IDLE_MS`     | 图片下载空闲超时(ms)                        | `15000`              |
+| `XHS_VIDEO_IDLE_MS`        | 视频下载空闲超时(ms)                        | `30000`              |
 
 ## 输出目录
 
