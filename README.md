@@ -242,8 +242,3 @@ npx tsx src/cli/index.ts note --url "..."
 ## 开源许可
 
 本项目采用 **[MIT License](https://opensource.org/licenses/MIT)** 授权，许可全文见仓库根目录 [`LICENSE`](./LICENSE)。
-
-## 参考
-
-- [Spider_XHS (Python 原版)](https://github.com/NanmiCoder/Spider_XHS)
-- [小红书 PC Web](https://www.xiaohongshu.com)
