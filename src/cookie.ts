@@ -1,3 +1,4 @@
+#!/usr/bin/env bun
 import consola from 'consola'
 import { createInterface } from 'node:readline/promises'
 

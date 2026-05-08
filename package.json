@@ -1,10 +1,39 @@
 {
   "name": "spider-xhs-bun",
   "version": "0.1.0",
-  "private": true,
+  "description": "小红书 PC Web 爬虫 CLI（Bun + TypeScript）",
+  "keywords": [
+    "bun",
+    "cli",
+    "crawler",
+    "spider",
+    "xhs",
+    "xiaohongshu"
+  ],
+  "license": "MIT",
+  "author": "will-zhang",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ZhangWillThink/red-note-spider.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ZhangWillThink/red-note-spider/issues"
+  },
+  "homepage": "https://github.com/ZhangWillThink/red-note-spider#readme",
+  "bin": {
+    "spider-xhs-bun": "src/cli/index.ts",
+    "spider-xhs-bun-cookie": "src/cookie.ts"
+  },
+  "files": [
+    "src",
+    "static",
+    "README.md",
+    "LICENSE"
+  ],
   "type": "module",
   "module": "src/cli/index.ts",
   "scripts": {
+    "prepublishOnly": "bun run typecheck && bun run lint",
     "cookie": "bun run src/cookie.ts",
     "dev": "bun run src/cli/index.ts",
     "note": "bun run src/cli/index.ts note",
@@ -29,5 +58,8 @@
     "oxfmt": "^0.48.0",
     "oxlint": "^1.63.0",
     "typescript": "^6.0.3"
+  },
+  "engines": {
+    "bun": ">=1.0.0"
   }
 }

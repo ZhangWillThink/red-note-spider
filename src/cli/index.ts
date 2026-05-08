@@ -1,3 +1,4 @@
+#!/usr/bin/env bun
 import { defineCommand, runMain } from 'citty'
 import consola from 'consola'
 import { readFile } from 'node:fs/promises'

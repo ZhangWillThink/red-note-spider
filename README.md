@@ -1,6 +1,12 @@
 # Spider XHS (Bun/TypeScript 版)
 
+[![npm](https://img.shields.io/npm/v/spider-xhs-bun.svg)](https://www.npmjs.com/package/spider-xhs-bun)
+[![GitHub Repo](https://img.shields.io/badge/GitHub-red--note--spider-181717?logo=github)](https://github.com/ZhangWillThink/red-note-spider)
+
 小红书 PC Web 端爬虫，Bun + TypeScript 实现，基于 [Spider_XHS](https://github.com/NanmiCoder/Spider_XHS) Python 版本移植。
+
+- **源码仓库**：[github.com/ZhangWillThink/red-note-spider](https://github.com/ZhangWillThink/red-note-spider)
+- **npm 包**：[spider-xhs-bun](https://www.npmjs.com/package/spider-xhs-bun)（运行仍需本机安装 [Bun](https://bun.sh/) >= 1.0）
 
 ## 免责声明
 
@@ -24,12 +30,36 @@
 
 ## 安装
 
-```bash
-# 克隆项目
-git clone https://github.com/NanmiCoder/Spider_XHS.git
-cd Spider_XHS/spider-xhs-bun
+### 从 npm 安装
 
-# 安装依赖
+```bash
+# 全局安装（推荐用 Bun 安装，也可用 npm）
+bun add -g spider-xhs-bun
+# 或
+npm install -g spider-xhs-bun
+```
+
+安装后可用全局命令：
+
+| 命令 | 说明 |
+| ---- | ---- |
+| `spider-xhs-bun` | 主 CLI，子命令：`note`、`user`、`search` |
+| `spider-xhs-bun-cookie` | 交互式保存 Cookie 到当前目录下的 `cookies.txt` |
+
+不全局安装时，可在项目目录用 **`bunx spider-xhs-bun`**（或 `bun x spider-xhs-bun`）代替下面的 `spider-xhs-bun`，例如：
+
+```bash
+bunx spider-xhs-bun note --url "https://www.xiaohongshu.com/explore/..."
+```
+
+下文「使用方法」中的 **`bun run …`** 表示**从本仓库源码**运行时；若使用 npm 全局 CLI，请把 `bun run note` / `bun run user` / `bun run search` 换成 **`spider-xhs-bun note`** 等形式。
+
+### 从源码安装
+
+```bash
+git clone https://github.com/ZhangWillThink/red-note-spider.git
+cd red-note-spider
+
 bun install
 ```
 
@@ -38,7 +68,7 @@ bun install
 1. 浏览器访问 [小红书](https://www.xiaohongshu.com) 并登录
 2. 按 F12 打开开发者工具，切换到 Network 面板
 3. 刷新页面，找到任意请求，复制 Request Headers 中的 `Cookie` 字段
-4. 运行 `bun cookie`，按提示粘贴 Cookie
+4. 运行 `spider-xhs-bun-cookie`（npm 全局）或 `bun cookie`（本仓库源码），按提示粘贴 Cookie
 
 ## 使用方法
 
@@ -116,10 +146,11 @@ bun run search --query "新闻" --noteTime 2
 首次使用或 Cookie 失效后，运行：
 
 ```bash
-bun cookie
+spider-xhs-bun-cookie
+# 或从源码：bun cookie
 ```
 
-该命令会把 Cookie 保存到本地 `cookies.txt`，后续 `note`、`user`、`search` 命令会自动读取。
+该命令会把 Cookie 保存到**当前工作目录**下的 `cookies.txt`，后续 `note`、`user`、`search` 命令会自动读取。
 
 也可以临时通过参数传入：
 
@@ -155,7 +186,7 @@ datas/
 ## 项目结构
 
 ```
-spider-xhs-bun/
+red-note-spider/
 ├── src/
 │   ├── apis/              # API 接口封装
 │   │   ├── pc.ts          # 小红书 PC Web API
@@ -171,7 +202,7 @@ spider-xhs-bun/
 │   │   └── index.ts       # CLI 入口（citty）
 │   └── smoke.ts           # 签名模块冒烟测试
 ├── static/                # 静态资源（签名JS）
-├── cookies.txt            # 本地 Cookie（运行 bun cookie 生成，不提交）
+├── cookies.txt            # 本地 Cookie（spider-xhs-bun-cookie / bun cookie，不提交）
 ├── .env.example           # 下载相关环境变量示例
 ├── package.json
 └── tsconfig.json
