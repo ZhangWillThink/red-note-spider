@@ -1,0 +1,33 @@
+{
+  "name": "spider-xhs-bun",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "module": "src/cli/index.ts",
+  "scripts": {
+    "cookie": "bun run src/cookie.ts",
+    "dev": "bun run src/cli/index.ts",
+    "note": "bun run src/cli/index.ts note",
+    "user": "bun run src/cli/index.ts user",
+    "search": "bun run src/cli/index.ts search",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint src/**/*.ts",
+    "fmt": "oxfmt"
+  },
+  "dependencies": {
+    "citty": "^0.2.2",
+    "consola": "^3.4.2",
+    "crypto-js": "^4.2.0",
+    "exceljs": "^4.4.0"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/crypto-js": "^4.2.2",
+    "@typescript-eslint/eslint-plugin": "^8.59.2",
+    "@typescript-eslint/parser": "^8.59.2",
+    "globals": "^17.6.0",
+    "oxfmt": "^0.48.0",
+    "oxlint": "^1.63.0",
+    "typescript": "^6.0.3"
+  }
+}
