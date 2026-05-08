@@ -1,6 +1,6 @@
 {
   "name": "spider-xhs-bun",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "小红书 PC Web 爬虫 CLI（Bun + TypeScript）",
   "keywords": [
     "bun",
