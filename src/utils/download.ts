@@ -11,6 +11,8 @@ import type { NoteInfo } from './data.ts'
 
 import { normStr } from './data.ts'
 
+import { createLimiter } from './limiter.ts'
+
 /** 对应 `data_util.py::check_and_create_path` */
 export async function ensureDir(path: string): Promise<void> {
   await mkdir(path, { recursive: true })
@@ -30,30 +32,6 @@ async function resolveIPv4(host: string): Promise<string> {
   if (!ip) throw new Error(`DNS IPv4 解析失败: ${host}`)
   dnsCache.set(host, ip)
   return ip
-}
-
-/**
- * 简易并发限流器：限制同时 in-flight 的 Promise 数。
- * 相比 `p-limit` 无外部依赖，足够这里的下载场景使用。
- */
-export function createLimiter(max: number) {
-  let active = 0
-  const queue: Array<() => void> = []
-  const next = () => {
-    if (active >= max || queue.length === 0) return
-    active++
-    queue.shift()!()
-  }
-  return async function run<T>(fn: () => Promise<T>): Promise<T> {
-    if (active >= max) await new Promise<void>((resolve) => queue.push(resolve))
-    else active++
-    try {
-      return await fn()
-    } finally {
-      active--
-      next()
-    }
-  }
 }
 
 /** 全局媒体下载并发上限（可通过 `XHS_DOWNLOAD_CONCURRENCY` 覆盖） */

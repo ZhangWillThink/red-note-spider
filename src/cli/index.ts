@@ -4,6 +4,8 @@ import consola from 'consola'
 import { readFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 
+import pkg from '../../package.json' with { type: 'json' }
+
 import type { SearchOptions } from '../apis/pc.ts'
 
 import { getNoteInfo, getUserAllNotes, searchSomeNote } from '../apis/pc.ts'
@@ -11,6 +13,7 @@ import { parseCookies } from '../utils/cookie.ts'
 import { handleNoteInfo, type NoteInfo } from '../utils/data.ts'
 import { downloadNote, ensureDir, type SaveChoice } from '../utils/download.ts'
 import { saveToXlsx } from '../utils/excel.ts'
+import { createLimiter } from '../utils/limiter.ts'
 import { cookieFilePath, resolveOutputRoot } from '../utils/xhs-paths.ts'
 
 type BasePath = { media: string; excel: string }
@@ -102,6 +105,48 @@ function normalizeLegacyUrlArg(argv: string[]): string[] {
   return [subCommand, `--url=${firstArg}`, ...rest]
 }
 
+interface UserPostedNoteRef {
+  note_id: string
+  xsec_token: string
+}
+
+function isUserPostedNoteRef(n: unknown): n is UserPostedNoteRef {
+  if (!n || typeof n !== 'object') return false
+  const o = n as Record<string, unknown>
+  return typeof o.note_id === 'string' && typeof o.xsec_token === 'string'
+}
+
+interface SearchNoteItem {
+  id: string
+  xsec_token: string
+  model_type: unknown
+}
+
+function isSearchNoteItem(n: unknown): n is SearchNoteItem {
+  if (!n || typeof n !== 'object') return false
+  const o = n as Record<string, unknown>
+  return (
+    o.model_type === 'note' &&
+    typeof o.id === 'string' &&
+    typeof o.xsec_token === 'string'
+  )
+}
+
+function asAllowedEnum<T extends number>(
+  n: number,
+  allowed: readonly T[],
+  fallback: T,
+): T {
+  return (allowed as readonly number[]).includes(n) ? (n as T) : fallback
+}
+
+/** 多篇笔记并行拉取上限（可通过 `XHS_NOTE_FETCH_CONCURRENCY` 配置，默认 6） */
+function getNoteFetchConcurrency(): number {
+  const n = Number(process.env.XHS_NOTE_FETCH_CONCURRENCY ?? 6)
+  if (!Number.isFinite(n)) return 6
+  return Math.max(1, Math.floor(n))
+}
+
 /** 核心流程：给一组 note_url，调用 feed 接口解析后批量下载/导出 Excel */
 async function spiderSomeNote(
   noteUrls: string[],
@@ -114,21 +159,38 @@ async function spiderSomeNote(
     throw new Error('excel_name 不能为空')
   }
   const notes: NoteInfo[] = []
-  for (const url of noteUrls) {
-    const res = await getNoteInfo(url, cookiesStr)
-    if (!res.success) {
-      consola.warn(`get_note_info 失败 ${url}: ${res.msg}`)
-      continue
-    }
-    const item = res.data?.data?.items?.[0]
-    if (!item) {
-      consola.warn(`无数据 ${url}`)
-      continue
-    }
-    item.url = url
-    notes.push(handleNoteInfo(item))
-    consola.success(`已解析 ${url}`)
-  }
+  const limit = createLimiter(getNoteFetchConcurrency())
+  type FeedEnvelope = {
+    data?: { items?: Array<Record<string, unknown>> }
+  } | null
+  const indexed = await Promise.all(
+    noteUrls.map((url, index) =>
+      limit(async () => {
+        const res = await getNoteInfo(url, cookiesStr)
+        if (!res.success) {
+          const hint =
+            res.httpStatus != null ? ` (HTTP ${res.httpStatus})` : ''
+          consola.warn(`get_note_info 失败 ${url}: ${res.msg}${hint}`)
+          return { index, note: null as NoteInfo | null }
+        }
+        const envelope = res.data as FeedEnvelope
+        const item = envelope?.data?.items?.[0]
+        if (!item) {
+          consola.warn(`无数据 ${url}`)
+          return { index, note: null as NoteInfo | null }
+        }
+        item.url = url
+        const note = handleNoteInfo(item)
+        consola.success(`已解析 ${url}`)
+        return { index, note }
+      }),
+    ),
+  )
+  indexed
+    .sort((a, b) => a.index - b.index)
+    .forEach((entry) => {
+      if (entry.note) notes.push(entry.note)
+    })
 
   if (saveChoice === 'all' || saveChoice.startsWith('media')) {
     await ensureDir(base.media)
@@ -220,10 +282,10 @@ const userCmd = defineCommand({
       consola.error(`获取用户笔记失败: ${res.msg}`)
       process.exit(1)
     }
-    const list = res.data ?? []
+    const list = (res.data ?? []).filter(isUserPostedNoteRef)
     consola.info(`用户作品数量: ${list.length}`)
     const noteUrls = list.map(
-      (n: any) =>
+      (n) =>
         `https://www.xiaohongshu.com/explore/${n.note_id}?xsec_token=${n.xsec_token}`,
     )
     const excelName = userUrl.split('/').pop()?.split('?')[0] ?? 'user'
@@ -270,10 +332,13 @@ const searchCmd = defineCommand({
   },
   async run({ args }) {
     const cookiesStr = await resolveCookies(args.cookies)
+    const sortVals = [0, 1, 2, 3, 4] as const
+    const noteTypeVals = [0, 1, 2] as const
+    const noteTimeVals = [0, 1, 2, 3] as const
     const opts: SearchOptions = {
-      sortTypeChoice: Number(args.sort) as any,
-      noteType: Number(args.noteType) as any,
-      noteTime: Number(args.noteTime) as any,
+      sortTypeChoice: asAllowedEnum(Number(args.sort), sortVals, 0),
+      noteType: asAllowedEnum(Number(args.noteType), noteTypeVals, 0),
+      noteTime: asAllowedEnum(Number(args.noteTime), noteTimeVals, 0),
     }
     const res = await searchSomeNote(
       args.query,
@@ -285,10 +350,10 @@ const searchCmd = defineCommand({
       consola.error(`搜索失败: ${res.msg}`)
       process.exit(1)
     }
-    const notes = (res.data ?? []).filter((x: any) => x.model_type === 'note')
-    consola.info(`搜索 "${args.query}" 命中: ${notes.length}`)
-    const noteUrls = notes.map(
-      (n: any) =>
+    const hits = (res.data ?? []).filter(isSearchNoteItem)
+    consola.info(`搜索 "${args.query}" 命中: ${hits.length}`)
+    const noteUrls = hits.map(
+      (n) =>
         `https://www.xiaohongshu.com/explore/${n.id}?xsec_token=${n.xsec_token}`,
     )
     await spiderSomeNote(
@@ -304,7 +369,7 @@ const searchCmd = defineCommand({
 const main = defineCommand({
   meta: {
     name: 'spider-xhs',
-    version: '0.1.1',
+    version: pkg.version,
     description: 'Spider XHS (Bun/TS 版)',
   },
   subCommands: { note: noteCmd, user: userCmd, search: searchCmd },

@@ -26,7 +26,7 @@ bun run note         # 爬取笔记
 bun run user         # 爬取用户作品
 bun run search       # 搜索笔记
 bun run typecheck    # TypeScript 类型检查
-bun run lint         # ESLint 代码检查
+bun run lint         # oxlint 代码检查
 ```
 
 ## 代码结构
@@ -44,6 +44,7 @@ src/
 │   ├── xhs-paths.ts # 状态目录、Cookie 路径、输出目录（XHS_*）
 │   ├── data.ts       # 数据处理、类型定义
 │   ├── download.ts  # 媒体下载（含 DNS 修复、并发控制）
+│   ├── limiter.ts   # `createLimiter`：下载与多篇笔记并行 feed 共用
 │   └── excel.ts     # Excel 导出
 ├── smoke.ts          # 签名模块测试
 └── smoke-eval.ts     # 签名评估测试
@@ -64,9 +65,13 @@ src/
 - `download.ts` 中使用 `Bun.dns.lookup({family: 4})` 预先解析 IPv4
 - 通过 IP 直连 + Host 头绕过 DNS 问题
 
-### 3. 并发控制
+### 3. 并发与 Edith 请求策略
 
-- 媒体下载使用 `createLimiter()` 控制并发（默认 6，可通过 `XHS_DOWNLOAD_CONCURRENCY` 调整）
+- `src/utils/limiter.ts` 提供 `createLimiter(max)`：**媒体下载**与**多篇笔记 feed** 共用该限流器实现。
+- 媒体下载默认并发 `6`，环境变量 `XHS_DOWNLOAD_CONCURRENCY`。
+- 多篇笔记 URL 并行拉取 `getNoteInfo` 时并发默认 `6`，环境变量 `XHS_NOTE_FETCH_CONCURRENCY`（见 `src/cli/index.ts` 中 `spiderSomeNote`）。
+- `src/apis/pc.ts` 中统一走 `call()`：**先读响应文本再 JSON 解析**，失败时对网络错误及部分 HTTP（如 429 / 460 / 5xx 部分）按 `XHS_API_MAX_RETRIES`、`XHS_API_RETRY_BASE_MS` 退避重试；每次调用结束可依 `XHS_REQUEST_DELAY_MS` 做固定间隔（默认 0），利于「礼貌爬取」。
+- **`ApiResult` 含可选字段 `httpStatus`**，便于 CLI 或上层区分 HTTP 失败与业务 `success:false`。
 - 搜索有最大页数限制（默认 50 页，防止死循环）
 
 ### 4. Cookie、状态目录与输出目录
@@ -76,28 +81,34 @@ src/
 - 爬取结果根目录：**`--out`** 优先，否则 **`XHS_DATA_DIR`**，否则当前目录下 **`./datas`**。
 - 项目根目录下的 `cookies.txt` 仍可用于仓库内开发（已加入 `.gitignore`）。
 
-环境变量（下载相关）：
+环境变量（路径、下载与 Edith API）：
 
-| 变量                       | 说明             | 必需                |
-| -------------------------- | ---------------- | ------------------- |
+| 变量                       | 说明             | 必需 |
+| -------------------------- | ---------------- | ---- |
 | `XHS_STATE_DIR`           | 状态根目录（Cookie 默认存其下） | ❌ |
 | `XHS_COOKIES_FILE`        | Cookie 文件完整路径 | ❌ |
 | `XHS_DATA_DIR`            | 爬取输出根目录（未传 `--out` 时） | ❌ |
-| `XHS_DOWNLOAD_CONCURRENCY` | 下载并发数       | ❌ 否（默认 6）     |
-| `XHS_DOWNLOAD_CONNECT_MS`  | 连接超时(ms)     | ❌ 否（默认 15000） |
-| `XHS_DOWNLOAD_IDLE_MS`     | 图片空闲超时(ms) | ❌ 否（默认 15000） |
-| `XHS_VIDEO_IDLE_MS`        | 视频空闲超时(ms) | ❌ 否（默认 30000） |
+| `XHS_DOWNLOAD_CONCURRENCY` | 媒体下载并发数（默认 6） | ❌ |
+| `XHS_DOWNLOAD_CONNECT_MS`  | 下载连接超时(ms)（默认 15000） | ❌ |
+| `XHS_DOWNLOAD_IDLE_MS`     | 图片下载空闲超时(ms)（默认 15000） | ❌ |
+| `XHS_VIDEO_IDLE_MS`        | 视频下载空闲超时(ms)（默认 30000） | ❌ |
+| `XHS_NOTE_FETCH_CONCURRENCY` | 并行请求笔记 feed 的上限（默认 6） | ❌ |
+| `XHS_REQUEST_DELAY_MS`     | 每次 Edith `call` 完成后暂停(ms)，默认 0 | ❌ |
+| `XHS_API_MAX_RETRIES`      | API 失败后额外重试次数，默认 2（共最多 3 次请求） | ❌ |
+| `XHS_API_RETRY_BASE_MS`    | API 重试退避基数(ms)，默认 1500 | ❌ |
+
+主命令 `meta.version` 从仓库根 **`package.json` 的 `version`** 读取，与 npm 发包版本一致。
 
 ### 5. 日志规范
 
 - ✅ 使用 `consola`（已配置）
-- ❌ 避免使用 `console.log/warn/error`（ESLint 会警告）
+- ❌ 避免使用 `console.log/warn/error`（oxlint 会警告）
 - 允许使用 `console` 的 `warn`、`error`、`info` 方法（配置中已豁免）
 
 ### 6. 类型安全
 
 - 项目启用了 TypeScript 严格模式
-- 存在 `any` 类型的地方会触发 ESLint 警告（@typescript-eslint/no-explicit-any）
+- 存在 `any` 类型的地方可能触发 oxlint 的 `typescript/no-explicit-any` 警告
 - 新代码尽量避免使用 `any`，对于外部 API 响应可逐步添加类型定义
 
 ## 常见任务指南
@@ -110,8 +121,8 @@ src/
 
 ### 修改 API 调用
 
-1. API 封装在 `src/apis/pc.ts`
-2. 需要签名的请求使用 `buildRequest()` 生成 headers
+1. API 封装在 `src/apis/pc.ts`，入口为内部 `call()`（重试、延迟、解析逻辑集中在此）
+2. 需要签名的请求使用 `buildRequest()` 生成 headers（`headers.ts`）
 3. 签名函数来自 `src/sign/index.ts`
 
 ### 处理媒体下载

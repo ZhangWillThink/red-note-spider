@@ -23,7 +23,7 @@
 - 📝 **笔记详情**：获取单篇笔记的详细信息
 - 📥 **媒体下载**：支持图片、视频下载，自动处理 WSL DNS 问题
 - 📊 **Excel 导出**：将爬取数据导出为 Excel 格式
-- ⚡ **高性能**：基于 Bun 运行时，支持并发下载控制
+- ⚡ **性能与健壮性**：基于 Bun 运行时；媒体下载与**多篇笔记详情**（`feed`）均可限流并发；Edith API 支持**退避重试**与可选**请求间隔**，降低弱网失败率与触发风控的概率
 
 ## 环境要求
 
@@ -46,7 +46,7 @@ npm install -g spider-xhs-bun
 | 命令                    | 说明                                           |
 | ----------------------- | ---------------------------------------------- |
 | `spider-xhs-bun`        | 主 CLI，子命令：`note`、`user`、`search`       |
-| `spider-xhs-bun-cookie` | 交互式保存 Cookie 到当前目录下的 `cookies.txt` |
+| `spider-xhs-bun-cookie` | 交互式保存 Cookie（默认写入本机状态目录，见下表） |
 
 不全局安装时，可在项目目录用 **`bunx spider-xhs-bun`**（或 `bun x spider-xhs-bun`）代替下面的 `spider-xhs-bun`，例如：
 
@@ -179,6 +179,8 @@ spider-xhs-bun note --url "url" --cookies "你的cookies字符串"
 
 ## 环境变量
 
+### 路径与下载
+
 | 变量名                     | 说明                                        | 默认值 / 行为        |
 | -------------------------- | ------------------------------------------- | -------------------- |
 | `XHS_STATE_DIR`            | 状态根目录（Cookie 默认在 `…/cookies.txt`） | 见上表               |
@@ -188,6 +190,19 @@ spider-xhs-bun note --url "url" --cookies "你的cookies字符串"
 | `XHS_DOWNLOAD_CONNECT_MS`  | 下载连接超时(ms)                            | `15000`              |
 | `XHS_DOWNLOAD_IDLE_MS`     | 图片下载空闲超时(ms)                        | `15000`              |
 | `XHS_VIDEO_IDLE_MS`        | 视频下载空闲超时(ms)                        | `30000`              |
+
+### Edith API（`src/apis/pc.ts`）与多篇笔记抓取
+
+多篇笔记、`user`、`search` 都会多次请求 `edith.xiaohongshu.com`。可通过下列变量调节并发、间隔与重试。以下变量与 Cookie 无关；**请勿将 Cookie 写入 `.env` 或提交到仓库**。
+
+| 变量名                         | 说明                                                                 | 默认   |
+| ------------------------------ | -------------------------------------------------------------------- | ------ |
+| `XHS_NOTE_FETCH_CONCURRENCY`   | 并行请求笔记详情接口（`feed`）的并发上限；单条 URL 仍一次请求           | `6`    |
+| `XHS_REQUEST_DELAY_MS`         | 每次 Edith API 调用**结束后**额外等待的毫秒数（用户分页、搜索翻页等均生效） | `0`（不延迟） |
+| `XHS_API_MAX_RETRIES`          | 失败后的**额外**重试次数（不含首次请求）；对网络错误及部分 HTTP 状态退避 | `2`（最多共 3 次请求） |
+| `XHS_API_RETRY_BASE_MS`        | 重试间隔基数：`基数 × 重试序号`，单位 ms                             | `1500` |
+
+可重试的 HTTP 状态包括：`429`、`460`、`500`、`502`、`503`、`504`。CLI 的版本号与 **npm/package.json** 中的 `version` 一致。
 
 ## 输出目录
 
@@ -222,6 +237,7 @@ red-note-spider/
 │   │   ├── xhs-paths.ts   # 状态目录、Cookie/输出路径
 │   │   ├── data.ts        # 数据处理
 │   │   ├── download.ts    # 媒体下载
+│   │   ├── limiter.ts     # 并发限流（下载与多篇笔记 feed 共用）
 │   │   └── excel.ts       # Excel 导出
 │   ├── cli/
 │   │   └── index.ts       # CLI 入口（citty）
